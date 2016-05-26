@@ -41,6 +41,7 @@ int main(int argc, const char * argv[])
 {
 	char const* path = argv[0];
 	char const* name = argv[0];
+    const bool debug_enabled = false;
 	size_t pathLen = strlen(path);
 	for (size_t i = pathLen; i; --i)
 	{
@@ -90,7 +91,7 @@ int main(int argc, const char * argv[])
 			long value = 1;
 			CFNumberGetValue((CFNumberRef)CoordMode, kCFNumberLongType, &value);
 			
-			if(value == 0)
+			if(value == 1)
 			{
 				CFPropertyListRef IPValue = CFPreferencesCopyAppValue(CFSTR("CoordinatorIP"), CFSTR("com.marksatt.DistCode"));
 				if(IPValue)
@@ -158,6 +159,9 @@ int main(int argc, const char * argv[])
 	Args[ArgIdx++] = strdup(distprop.c_str());
 	Args[ArgIdx++] = strdup("--wait");
 	Args[ArgIdx++] = timeoutBuffer;
+    if (debug_enabled) {
+        Args[ArgIdx++] = strdup("--debug");
+    }
 	Args[ArgIdx++] = strdup(distccPath.c_str());
 	Args[ArgIdx++] = strdup("xcrun");
 	Args[ArgIdx++] = strdup(name);
@@ -165,6 +169,14 @@ int main(int argc, const char * argv[])
 		Args[ArgIdx++] = strdup(argv[i]);
 	}
 	Args[ArgIdx++] = NULL;
+    
+    if (debug_enabled) {
+        std::cout << "DiscClang calling: ";
+        for (int i = 0; i < ArgIdx-1; i++) {
+            std::cout << Args[i] << " ";
+        }
+        std::cout << std::endl;
+    }
 	
 	int forkret = fork();
 	if (forkret == 0) {
