@@ -143,6 +143,7 @@ CPP_OPTIONS_ALWAYS_TWO_WORDS = {
   '--param':        lambda ps, arg: None,
   '-Xassembler':    lambda ps, arg: None,
   '-Xlinker':       lambda ps, arg: None,
+  '--serialize-diagnostics': lambda ps, arg: None,
 }
 
 # For efficiency, it's helpful to be able to combine the two above
