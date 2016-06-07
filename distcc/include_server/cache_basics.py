@@ -1,4 +1,4 @@
-#! /usr/bin/python2.4
+#! /usr/bin/env python3
 
 # Copyright 2007 Google Inc.
 #
@@ -16,7 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
 # USA.
-# 
+#
 
 """Classes enabling definition and composition of caches.
 
@@ -192,7 +192,6 @@ import os.path
 import sys
 
 import basics
-import headermap
 import statistics
 import compiler_defaults
 
@@ -338,11 +337,9 @@ class DirnameCache(object):
     try:
       return self.cache[(currdir_idx, searchdir_idx, includepath_idx)]
     except KeyError:
-      full_path = basics.PathFromDirMapEntryAndInclude(
-                                  self.directory_map.string[searchdir_idx],
-                                  self.includepath_map.string[includepath_idx])
-      assert full_path
-      directory = os.path.dirname(full_path)
+      directory = os.path.dirname(os.path.join(
+         self.directory_map.string[searchdir_idx],
+         self.includepath_map.string[includepath_idx]))
       dir_idx = self.directory_map.Index(directory)
       rp_idx = self.realpath_map.Index(
           os.path.join(self.directory_map.string[currdir_idx],
@@ -350,7 +347,7 @@ class DirnameCache(object):
       self.cache[(currdir_idx, searchdir_idx, includepath_idx)] = (dir_idx,
                                                                    rp_idx)
       return (dir_idx, rp_idx)
-      
+
 
 class SystemdirPrefixCache(object):
   """A cache of information about whether a file exists in a systemdir.
@@ -392,14 +389,14 @@ class SystemdirPrefixCache(object):
 
     Argument:
      realpath_map: a string-to-int map of canonicalized filepaths we know.
-     
+
     After this function is called, the cache entry is True iff
     realpath.startswith(systemdir) is True for any of the systemdirs
     passed in to our constructor.
     """
     if len(self.cache) >= realpath_map.Length():
       return    # we're already all full
-    for realpath_idx in xrange(len(self.cache), realpath_map.Length()):
+    for realpath_idx in range(len(self.cache), realpath_map.Length()):
       realpath = realpath_map.string[realpath_idx]
       for systemdir in self.systemdirs:
         if realpath.startswith(systemdir):
@@ -563,7 +560,7 @@ class CanonicalMapToIndex(MapToIndex):
     """
     return MapToIndex.Index(self, self.canonicalize(filepath))
 
-    
+
 def RetrieveDirectoriesExceptSys(directory_map, realpath_map,
                                  systemdir_prefix_cache, directory_idxs):
   """Calculate the set of non-system directories of an index list.
@@ -575,7 +572,7 @@ def RetrieveDirectoriesExceptSys(directory_map, realpath_map,
   Returns:
     the corresponding tuple of directories except for those whose
     realpath has a prefix that is a sysdir
-    
+
   The directories in the returned list have their trailing '/'
   stripped.
   """
@@ -583,11 +580,6 @@ def RetrieveDirectoriesExceptSys(directory_map, realpath_map,
   for dir_idx in directory_idxs:
     # Index the absolute path; this will let us know whether dir_idx is under a
     # default systemdir of the compiler.
-
-    # NOTE: This does NOT handle the directory_map entries for framework
-    # search paths that start with '*H'/'*P', but this routine is only called
-    # from parse_command_test.py so we're letting it go.
-
     rp_idx = realpath_map.Index(os.path.join(
 	os.getcwd(), directory_map.string[dir_idx]))
     systemdir_prefix_cache.FillCache(realpath_map)
@@ -648,7 +640,6 @@ class BuildStatCache(object):
     self.directory_map = directory_map
     self.realpath_map = realpath_map
     self.path_observations = []
-    self.framework_fallback = 'FRAMEWORK_FALLBACK'
 
   def _Verify(self, currdir_idx, searchdir_idx, includepath_idx):
     """Verify that the cached result is the same as obtained by stat call.
@@ -663,19 +654,15 @@ class BuildStatCache(object):
     # use + instead of the more expensive os.path.join().
     # Make sure $PWD is currdir, so we don't need to include it in our stat().
     assert os.getcwd() + '/' == self.directory_map.string[currdir_idx]
-    built_path = basics.PathFromDirMapEntryAndInclude(
-                             self.directory_map.string[searchdir_idx],
-                             self.includepath_map.string[includepath_idx])
-    really_exists = built_path and _OsPathIsFile(built_path) or False
+    really_exists = _OsPathIsFile(
+      self.directory_map.string[searchdir_idx]
+      + self.includepath_map.string[includepath_idx])
     cache_exists = self.build_stat[currdir_idx][includepath_idx][searchdir_idx]
     assert isinstance(cache_exists, bool)
     if cache_exists != really_exists:
       filepath = os.path.join(self.directory_map.string[currdir_idx],
-                              basics.PathFromDirMapEntryAndInclude(
-                                self.directory_map.string[searchdir_idx],
-                                self.includepath_map.string[includepath_idx]) or
-                              (self.directory_map.string[searchdir_idx] +
-                               self.includepath_map.string[includepath_idx]))
+                              self.directory_map.string[searchdir_idx],
+                              self.includepath_map.string[includepath_idx])
       sys.exit("FATAL ERROR: "
                "Cache inconsistency: '%s' %s, but earlier this path %s." % (
         filepath,
@@ -696,7 +683,7 @@ class BuildStatCache(object):
     self.path_observations = []
 
   def Resolve(self, includepath_idx, currdir_idx, searchdir_idx,
-              searchlist_idxs, includer_dir_idx):
+              searchlist_idxs):
     """Says whether (currdir_idx, searchdir_idx, includepath_idx) exists,
     and if so what its canonicalized form is (with symlinks resolved).
     TODO(csilvers): rearrange the order of the arguments.
@@ -708,9 +695,6 @@ class BuildStatCache(object):
       searchdir_idx:   A single searchdir, which is prepended to searchlist,
                        or None to not prepend to the searchlist.
       searchlist_idxs: A list of directory indices.
-      includer_dir_idx: The index of the directory containing the file that
-                        #included the file being resolved.  Used for
-                        subframework include fallbacks.
 
     Returns:
       1) (None, None) if, for all sl_idx in [searchdir_idx] + searchlist_idxs,
@@ -724,20 +708,6 @@ class BuildStatCache(object):
 
     Again, we require as a prequesite that os.getcwd() must equal currdir:
        os.getcwd() + '/' == self.directory_map.string[currdir_idx]
-
-    To support Apple-style subframework includes, if the include is not found
-    in the directories identified by searchdir_idx or searchlist_idxs, and
-    the include form appears suitable for a framework include, and the
-    including file comes from a framework, this function will look inside
-    the including framework's subframeworks directory for the include.  As the
-    Apple compiler does, this behavior is treated only as a fallback, after
-    the normal search lists are consulted.  Apple's code for handling
-    framework includes is in:
-    http://www.opensource.apple.com/darwinsource/DevToolsOct2008/gcc_42-5566/gcc/config/darwin-c.c
-
-    This also supports header map lookups: if any sl_idx in [searchdir_idx] +
-    searchlist_idxs corresponds to a header map file, that header map will
-    be checked for includepath rather than searching the filesystem.
     """
     includepath = self.includepath_map.string[includepath_idx]
     if includepath.startswith('/'):
@@ -752,18 +722,16 @@ class BuildStatCache(object):
       dir_map = self.directory_map
       assert 0 < includepath_idx < self.includepath_map.Length()
       assert 0 < currdir_idx < dir_map.Length()
-      assert 0 < includer_dir_idx < dir_map.Length()
       assert searchdir_idx is None or 1 <= searchdir_idx < dir_map.Length()
       for sl_idx in searchlist_idxs:
         assert sl_idx < dir_map.Length()
-      assert os.getcwd() + '/' == dir_map_string[currdir_idx], (
-	"'%s/' != '%s'" % (os.getcwd(),  dir_map_string[currdir_idx]))
+      assert os.getcwd() + '/' == dir_map_string[currdir_idx]
       Debug(DEBUG_TRACE2, "Resolve: includepath: '%s', currdir: '%s', "
             "searchdir: '%s', searchlist: %s" %
-	    (includepath,
-	     dir_map_string[currdir_idx],
-	     searchdir_idx and dir_map_string[searchdir_idx],
-	     "  \n".join([dir_map_string[idx] for idx in searchlist_idxs])))
+            (includepath,
+             dir_map_string[currdir_idx],
+             searchdir_idx and dir_map_string[searchdir_idx],
+             "  \n".join([dir_map_string[idx] for idx in searchlist_idxs])))
     try:
       # Locate the array (list) relative to currdir_idx and includepath_idx
       searchdir_stats = build_stat[currdir_idx][includepath_idx]
@@ -781,31 +749,7 @@ class BuildStatCache(object):
     # This inner loop may be executed tens of millions of times.
     # Do not try to form [searchdir_idx] + searchlist_idxs -- too expensive!
     for searchlist in (searchdir_idx and [searchdir_idx] or [],
-                       searchlist_idxs,
-                       self.framework_fallback):
-
-      if searchlist is self.framework_fallback:
-        # When the special framework_fallback object is reached, attempt to
-        # do a subframework include.  The special token defers the "might
-        # this be a framework include?" and "was it included by a framework?"
-        # analysis until it might actually be needed.
-        searchlist = []
-        if '/' in includepath:
-          # The #include has a slash in it, so it might be a framework
-          # #include.
-          includer_dir = dir_map_string[includer_dir_idx]
-          dot_framework_slash = '.framework/'
-          dot_framework_index = includer_dir.find(dot_framework_slash)
-          if dot_framework_index != -1:
-            # The includer was a framework, so look for a subframework include
-            # on this pass.
-            subframework_dir = includer_dir[0:dot_framework_index +
-                                              len(dot_framework_slash)] + \
-                               'Frameworks'
-            # *H and *P are explained in ParseCommandArgs.IndexDirs.
-            searchlist = [self.directory_map.Index('*H' + subframework_dir),
-                          self.directory_map.Index('*P' + subframework_dir)]
-
+                       searchlist_idxs):
       for sl_idx in searchlist:
         if __debug__:
           statistics.search_counter += 1
@@ -817,9 +761,6 @@ class BuildStatCache(object):
           # relative to the sp directory.  We're optimizing for this
           # case of course. That should give us a rate of a couple of
           # million iterations per second (for this case).
-          #
-          # _Verify should never be called when sl_idx corresponds to a
-          # header map.
           if searchdir_stats[sl_idx] == False:
             if __debug__: self._Verify(currdir_idx, sl_idx, includepath_idx)
             continue
@@ -831,49 +772,12 @@ class BuildStatCache(object):
           searchdir_realpaths.extend([None] * max(sl_idx, len(searchdir_stats)))
 
         # If we get here, result is not cached yet.
-        sl_str = dir_map_string[sl_idx]
-
-        # If this search "directory" is actually a header map, query the
-        # header map.  Apple gcc does a file type check for this, we cheat
-        # and look for "directories" whose names end in ".hmap", as that's
-        # how Xcode always saves its header maps.  os.path.abspath causes
-        # the header map to be taken as relative to currdir_idx because
-        # os.getcwd() == currdir within this function.
-        relpath = \
-            sl_str.endswith('.hmap/') and \
-            headermap.global_collection.Resolve(os.path.abspath(sl_str),
-                                                includepath)
-        if relpath:
-          if relpath[-len(includepath):] == includepath:
-            # When relpath ends with includepath, just strip includepath off
-            # and use the preceding part of relpath as the directory that
-            # contains the header.
-            sl_str = relpath[0:-len(includepath)]
-          else:
-            # When relpath does not end with includepath, rewrite includepath
-            # to just be the last component of relpath, and use the preceding
-            # part of relpath as the directory that contains the header.
-            # This invalidates includepath_idx!
-            includepath = os.path.basename(relpath)
-            sl_str = os.path.dirname(relpath) + '/'
-
-          sl_idx = self.directory_map.Index(sl_str[:-1])
-
-          # Trust the header map.  Don't check for the file on disk, and
-          # don't touch searchdir_stats.  It's necessary to leave
-          # searchdir_stats alone to avoid calling _Verify, and because
-          # searchdir_stats is based on includepath_idx which may no longer
-          # correspond to includepath.
-          found = True
-        else:
-          if __debug__: statistics.sys_stat_counter += 1
-          # We do not explictly take into account currdir_idx, because
-          # of the check above that os.getcwd is set to current_dir.
-          relpath = basics.PathFromDirMapEntryAndInclude(sl_str, includepath)
-          found = relpath and _OsPathIsFile(relpath) or False
-          searchdir_stats[sl_idx] = found
-
-        if found:
+        if __debug__: statistics.sys_stat_counter += 1
+        # We do not explictly take into account currdir_idx, because
+        # of the check above that os.getcwd is set to current_dir.
+        relpath = dir_map_string[sl_idx] + includepath
+        if _OsPathIsFile(relpath):
+          searchdir_stats[sl_idx] = True
           rpath = os.path.join(dir_map_string[currdir_idx], relpath)
           realpath_idx = searchdir_realpaths[sl_idx] = (
             self.realpath_map.Index(rpath))
@@ -914,7 +818,7 @@ class SetUpCaches(object):
   """
 
   def __init__(self, client_root):
-     
+
     # A memoizing (caching) class to canonicalize a path: mostly by
     # resolving any symlinks in the path-component.
     self.canonical_path = CanonicalPath()

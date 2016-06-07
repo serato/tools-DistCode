@@ -75,10 +75,6 @@
 #include "auth.h"
 #endif
 
-#ifdef XCODE_INTEGRATION
-  #include "xci.h"
-#endif
-
 static void dcc_nofork_parent(int listen_fd) NORETURN;
 static void dcc_detach(void);
 static void dcc_save_pid(pid_t);
@@ -103,9 +99,7 @@ int dcc_standalone_server(void)
     int n_cpus;
     int ret;
 #ifdef HAVE_AVAHI
-#if 0  // http://code.google.com/p/toolwhip/issues/detail?id=3
     void *avahi = NULL;
-#endif  // http://code.google.com/p/toolwhip/issues/detail?id=3
 #endif
 
     if ((ret = dcc_socket_listen(arg_port, &listen_fd, opt_listen_addr)) != 0)
@@ -124,8 +118,8 @@ int dcc_standalone_server(void)
     if (arg_max_jobs)
         dcc_max_kids = arg_max_jobs;
     else
-		dcc_max_kids = 2 + n_cpus;
-	
+        dcc_max_kids = 2 + n_cpus;
+
     rs_log_info("allowing up to %d active jobs", dcc_max_kids);
 
     if (!opt_no_detach) {
@@ -144,18 +138,11 @@ int dcc_standalone_server(void)
     /* Don't catch signals until we've detached or created a process group. */
     dcc_daemon_catch_signals();
 
-#if defined(HAVE_AVAHI) || (defined(XCODE_INTEGRATION) && defined(HAVE_DNSSD))
+#ifdef HAVE_AVAHI
     /* Zeroconf registration */
     if (opt_zeroconf) {
-#ifdef HAVE_AVAHI
-#if 0  // http://code.google.com/p/toolwhip/issues/detail?id=3
         if (!(avahi = dcc_zeroconf_register((uint16_t) arg_port, n_cpus)))
             return EXIT_CONNECT_FAILED;
-#endif  // http://code.google.com/p/toolwhip/issues/detail?id=3
-#endif
-#ifdef XCODE_INTEGRATION
-        dcc_xci_zeroconf_register();
-#endif
     }
 #endif
 

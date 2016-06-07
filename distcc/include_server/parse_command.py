@@ -1,4 +1,4 @@
-#! /usr/bin/python2.4 
+#! /usr/bin/env python3
 
 # Copyright 2007 Google Inc.
 #
@@ -16,7 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
 # USA.
- 
+
 """Parsing of C and C++ commands and extraction of search paths."""
 
 __author__ = "opensource@google.com (Craig Silverstein, Nils Klarlund)"
@@ -46,7 +46,7 @@ class ParseState:
     self.file_names = []
     self.quote_dirs = []
     self.include_files = []
-    self.include_dirs = []
+    self.i_dirs = []
     self.before_system_dirs = []
     self.after_system_dirs = []
 
@@ -60,15 +60,7 @@ class ParseState:
   def set_nostdinc(self): self.nostdinc = True
   def set_language(self, x): self.language = x
   def set_isysroot(self, x): self.isysroot = x
-  def set_sysroot(self, x):
-    # --sysroot is a GNU style arg, meaning it's either two args or one arg
-    # with an equal sign in the middle.  So if we start with an equal sign
-    # skip over it (yes, this means somethind doing "--sysroot =foo" won't
-    # get what they want, but oh, well).
-    if x[0] == '=':
-      self.sysroot = x[1:]
-    else:
-      self.sysroot = x
+  def set_sysroot(self, x): self.sysroot = x
   def set_outputfile(self, x): self.output_file = x
   def set_iprefix(self, x): self.iprefix = x
   def include_sysroot(self):
@@ -107,8 +99,6 @@ CPP_OPTIONS_MAYBE_TWO_WORDS = {
   '-MT':            lambda ps, arg: None,
   '-MQ':            lambda ps, arg: None,
   '-arch':          lambda ps, arg: None,
-  '-iframework':    lambda ps, arg: ps.include_dirs.append((arg,
-                                               basics.INCLUDE_DIR_FRAMEWORKS)),
   '-include':       lambda ps, arg: ps.include_files.append(arg),
   '-imacros':       lambda ps, arg: ps.include_files.append(arg),
   '-idirafter':     lambda ps, arg: ps.after_system_dirs.append(arg),
@@ -121,7 +111,6 @@ CPP_OPTIONS_MAYBE_TWO_WORDS = {
   '-imultilib':     lambda ps, arg: _RaiseNotImplemented('-imultilib'),
   '-isystem':       lambda ps, arg: ps.before_system_dirs.append(arg),
   '-iquote':        lambda ps, arg: ps.quote_dirs.append(arg),
-  '--sysroot':      lambda ps, arg: ps.set_sysroot(arg),
 }
 CPP_OPTIONS_MAYBE_TWO_WORDS_FIRST_LETTERS = ('M', 'i', '-', 'a')
 # A "compile-time" check to make sure the first-letter list is up-to-date
@@ -143,7 +132,6 @@ CPP_OPTIONS_ALWAYS_TWO_WORDS = {
   '--param':        lambda ps, arg: None,
   '-Xassembler':    lambda ps, arg: None,
   '-Xlinker':       lambda ps, arg: None,
-  '--serialize-diagnostics': lambda ps, arg: None,
 }
 
 # For efficiency, it's helpful to be able to combine the two above
@@ -175,10 +163,7 @@ CPP_OPTIONS_ONE_WORD = {
 # word, or may be appended right after the letter.
 CPP_OPTIONS_ONE_LETTER = {
   'D': lambda ps, arg: ps.Dopts.append(arg.split('=')),
-  'F': lambda ps, arg: ps.include_dirs.append((arg,
-                                               basics.INCLUDE_DIR_FRAMEWORKS)),
-  'I': lambda ps, arg: ps.include_dirs.append((arg,
-                                               basics.INCLUDE_DIR_NORMAL)),
+  'I': lambda ps, arg: ps.i_dirs.append(arg),
 #  'U': lambda ps, arg: _RaiseNotImplemented('-U') # affects computed includes
   'U': lambda ps, arg: None,
   'o': lambda ps, arg: ps.set_outputfile(arg),
@@ -237,7 +222,7 @@ def ParseCommandLineSlowly(line):
   if m_unesc_q:
     unesc_q = m_unesc_q.end() - 1
   else:
-    unesc_q = sys.maxint
+    unesc_q = sys.maxsize
   m_nonspc = NONSPACE_RE.search(line, 0)
   if not m_nonspc:
     return args
@@ -247,10 +232,10 @@ def ParseCommandLineSlowly(line):
     # Invariant: (1) start is at the beginning of the next argument
     # (perhaps at a quote, which will later be removed). (2) end is
     # such that line[start:end] is a prefix of the argument.
-    assert start <= unesc_q 
+    assert start <= unesc_q
     assert start < end <= len(line), (start, end, len(line))
     assert not SPACE_RE.match(line, start)
-    assert unesc_q == sys.maxint or line[unesc_q] == '"'
+    assert unesc_q == sys.maxsize or line[unesc_q] == '"'
     try:
       end = SPACE_RE.search(line, end).start()
     except AttributeError:
@@ -277,7 +262,7 @@ def ParseCommandLineSlowly(line):
     m_unesc_q = NONESC_QUOTE_RE.search(line, unesc_q + 1)
     if not m_unesc_q:
       raise NotCoveredError("""Missing '"', could not parse command line.""")
-    assert m_unesc_q.end() - 1 > unesc_q 
+    assert m_unesc_q.end() - 1 > unesc_q
     end = m_unesc_q.end()
     if end == len(line):
       args.append(ESC_QUOTE_RE.sub(
@@ -292,7 +277,7 @@ def ParseCommandLineSlowly(line):
     if m_unesc_q:
       unesc_q = m_unesc_q.end() - 1
     else:
-      unesc_q = sys.maxint
+      unesc_q = sys.maxsize
 
 
 def ParseCommandLine(line):
@@ -359,7 +344,7 @@ def ParseCommandArgs(args, current_dir, includepath_map, dir_map,
 
   compiler = args[0]
 
-  i = 1 
+  i = 1
   while i < len(args):
     # First, deal with everything that's not a flag-option
     if args[i][0] != '-' or args[i] == '-':     # - is the stdin file
@@ -432,12 +417,11 @@ def ParseCommandArgs(args, current_dir, includepath_map, dir_map,
     i += 1
     continue
   # Done parsing arguments!
-  
+
   # Sanity-checking on arguments
   # -I- is a special form of the -I command.
-  for (d, t) in parse_state.include_dirs:
-    if d == "-":
-      _RaiseNotImplemented('-I-', '(Use -iquote instead.)')
+  if "-" in parse_state.i_dirs:
+    _RaiseNotImplemented('-I-', '(Use -iquote instead.)')
 
   if len(parse_state.file_names) != 1:
     raise NotCoveredError(
@@ -445,7 +429,7 @@ def ParseCommandArgs(args, current_dir, includepath_map, dir_map,
       send_email=False)
 
   source_file = parse_state.file_names[0]
-  
+
   if parse_state.output_file:
     # Use output_file to create prefix
     source_file_prefix = re.sub("[.]o$", "", parse_state.output_file)
@@ -470,45 +454,26 @@ def ParseCommandArgs(args, current_dir, includepath_map, dir_map,
                                           parse_state.language, timer)
 
   def IndexDirs(dir_list):
-    """Normalize directory names and index, but the list of names is actually
-    pairs of the name and type of directory (normal vs. framework).
+    """Normalize directory names and index.
 
     Remove leading "./" and trailing "/"'s from directory paths in
     dir_list before indexing them according to dir_map.
     """
     S = basics.SafeNormPath
     I = dir_map.Index
-
-    idx_list = []
-    for (d, t) in dir_list:
-      d = S(d)
-      if t == basics.INCLUDE_DIR_NORMAL:
-        idx_list.append(I(d))
-      else:
-        assert t == basics.INCLUDE_DIR_FRAMEWORKS
-        # We encode framework search dirs, by adding a leading '*', and
-        # then 'H' and 'P' to represent the Headers and PrivateHeaders dirs.
-        # So when combining directories with fragments there is always a
-        # clean 1 to 1 mapping.
-        idx_list.append(I('*H' + d))
-        idx_list.append(I('*P' + d))
-
-    return idx_list
+    return [I(S(d)) for d in dir_list]
 
   # Now string the directory lists together according to CPP semantics.
-  angle_dirs = IndexDirs(parse_state.include_dirs)
-  angle_dirs.extend(IndexDirs([(d, basics.INCLUDE_DIR_NORMAL) for d in
-                                              parse_state.before_system_dirs]))
+  angle_dirs = IndexDirs(parse_state.i_dirs)
+  angle_dirs.extend(IndexDirs(parse_state.before_system_dirs))
   if not parse_state.nostdinc:
     sysroot = parse_state.include_sysroot()
     angle_dirs.extend(
       IndexDirs(compiler_defaults.system_dirs_default
                 [compiler][sysroot][parse_state.language]))
-  angle_dirs.extend(IndexDirs([(d, basics.INCLUDE_DIR_NORMAL) for d in
-                                               parse_state.after_system_dirs]))
+  angle_dirs.extend(IndexDirs(parse_state.after_system_dirs))
 
-  quote_dirs = IndexDirs([(d, basics.INCLUDE_DIR_NORMAL) for d in
-                                                       parse_state.quote_dirs])
+  quote_dirs = IndexDirs(parse_state.quote_dirs)
   quote_dirs.extend(angle_dirs)
   angle_dirs = tuple(angle_dirs)
   quote_dirs = tuple(quote_dirs)
@@ -519,9 +484,9 @@ def ParseCommandArgs(args, current_dir, includepath_map, dir_map,
                              ignore_absolute_path_warning=True)
        for f in parse_state.include_files])
 
-  if __debug__: Debug(DEBUG_TRACE, ("ParseCommand result: %s %s %s %s %s %s" % 
+  if __debug__: Debug(DEBUG_TRACE, ("ParseCommand result: %s %s %s %s %s %s" %
                                     (quote_dirs, angle_dirs, include_files,
                                      source_file, source_file_prefix,
                                      parse_state.Dopts)))
-  return (quote_dirs, angle_dirs, include_files, source_file, source_file_prefix, 
+  return (quote_dirs, angle_dirs, include_files, source_file, source_file_prefix,
           parse_state.Dopts)

@@ -1080,7 +1080,6 @@ poptContext poptFreeContext(poptContext con)
 int poptAddAlias(poptContext con, struct poptAlias alias,
 		/*@unused@*/ int flags)
 {
-	(void)flags;
     poptItem item = alloca(sizeof(*item));
     memset(item, 0, sizeof(*item));
     item->option.longName = alias.longName;

@@ -3,7 +3,7 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
-/* Use getaddrinfo(), getnameinfo(), etc */
+/* use getaddrinfo(), getnameinfo(), etc */
 #undef ENABLE_RFC2553
 
 /* Your gnu-style host triple */
@@ -46,9 +46,6 @@
 /* Define to 1 if you have the declaration of `vsnprintf', and to 0 if you
    don't. */
 #undef HAVE_DECL_VSNPRINTF
-
-/* Defined to use Bonjour DNS_SD */
-#undef HAVE_DNSSD
 
 /* Define to 1 if you have the <elf.h> header file. */
 #undef HAVE_ELF_H
@@ -118,6 +115,15 @@
 
 /* Define to 1 if you have the `iberty' library (-liberty). */
 #undef HAVE_LIBIBERTY
+
+/* Define to 1 if you have the <libiberty.h> header file. */
+#undef HAVE_LIBIBERTY_H
+
+/* Define to 1 if you have the <libiberty/libiberty.h> header file. */
+#undef HAVE_LIBIBERTY_LIBIBERTY_H
+
+/* Define to 1 if you have the `popt' library (-lpopt). */
+#undef HAVE_LIBPOPT
 
 /* Define to 1 if you have the `lockf' function. */
 #undef HAVE_LOCKF
@@ -299,9 +305,6 @@
 #  undef WORDS_BIGENDIAN
 # endif
 #endif
-
-/* Enable Xcode integration */
-#undef XCODE_INTEGRATION
 
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */

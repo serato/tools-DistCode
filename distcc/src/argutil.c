@@ -53,8 +53,6 @@
 #include "util.h"
 #include "exitcode.h"
 
-/* Globals for -x support */
-const char *dcc_optx_ext = NULL;
 
 /**
  * Return true if argv contains needle as an argument.

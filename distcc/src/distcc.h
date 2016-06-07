@@ -141,10 +141,6 @@ int dcc_parse_hosts(const char *where, const char *source_name,
 
 /* ncpu.c */
 int dcc_ncpus(int *);
-#ifdef XCODE_INTEGRATION
-int dcc_cpuspeed(unsigned long long *);
-int dcc_memory(unsigned long long *memory);
-#endif
 
 /* ssh.c */
 int dcc_ssh_connect(char *ssh_cmd, char *user,
@@ -260,11 +256,8 @@ int dcc_set_action_opt(char **, const char *);
 int dcc_set_output(char **, char *);
 int dcc_set_input(char **, char *);
 int dcc_scan_args(char *argv[], /*@out@*/ /*@relnull@*/ char **orig_o,
-                  char **orig_i, char ***ret_newargv,
-                  const char **forced_cpp_ext);
+                  char **orig_i, char ***ret_newargv);
 int dcc_expand_preprocessor_options(char ***argv_ptr);
-int dcc_xci_mask_developer_dir_in_argv(char **argv);
-int dcc_xci_unmask_developer_dir_in_argv(char **argv);
 
 /* argutil.c */
 unsigned int dcc_argv_len(char **a);
@@ -273,7 +266,6 @@ int dcc_copy_argv(char **argv, char ***out_argv, int extra_args);
 int dcc_argv_append(char **argv, char *toadd);
 char *dcc_argv_tostr(char **a);
 void dcc_free_argv(char **argv);
-extern const char *dcc_optx_ext;
 
 /* tempfile.c */
 int dcc_get_tempdir(const char **);

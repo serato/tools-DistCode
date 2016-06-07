@@ -1,4 +1,4 @@
-#! /usr/bin/python2.4
+#! /usr/bin/env python3
 
 # Copyright 2007 Google Inc.
 #
@@ -50,19 +50,26 @@ class ParseCommandUnitTest(unittest.TestCase):
 
     mock_compiler = '/usr/crosstool/v8/gcc-4.1.0-glibc-2.2.2/blah/gcc'
     self.mock_compiler = mock_compiler
+    mock_sysroot = '/usr/local/fake/sysroot'
+    self.mock_sysroot = mock_sysroot
 
-    def Mock_SetSystemDirsDefaults(compiler, language, sysroot_info, timer=None):
+    def Mock_SetSystemDirsDefaults(compiler, sysroot, language, timer=None):
       if compiler != mock_compiler:
-        raise Exception, "compiler: %s, mock_compiler: %s" % (
-          compiler, mock_compiler)
+        raise Exception("compiler: %s, mock_compiler: %s" % (
+          compiler, mock_compiler))
+      if sysroot != mock_sysroot:
+        raise Exception("sysroot: %s, mock_sysroot: %s" % (
+          sysroot, mock_sysroot))
 
     self.compiler_defaults = lambda x: x
     self.compiler_defaults.SetSystemDirsDefaults =  Mock_SetSystemDirsDefaults
     self.compiler_defaults.system_dirs_default_all = []
     self.compiler_defaults.system_dirs_default = {}
-    self.compiler_defaults.system_dirs_default[mock_compiler] = {}
-    self.compiler_defaults.system_dirs_default[mock_compiler]['c'] = { '': [] }
-    self.compiler_defaults.system_dirs_default[mock_compiler]['c++'] = { '': [] }
+    system_dirs_default = self.compiler_defaults.system_dirs_default
+    system_dirs_default[mock_compiler] = {}
+    system_dirs_default[mock_compiler][mock_sysroot] = {}
+    system_dirs_default[mock_compiler][mock_sysroot]['c'] = []
+    system_dirs_default[mock_compiler][mock_sysroot]['c++'] = []
 
   def tearDown(self):
     shutil.rmtree(self.tmp)
@@ -118,16 +125,15 @@ class ParseCommandUnitTest(unittest.TestCase):
 
   def test_ParseCommandArgs(self):
 
-    # TODO(tvl): add -F and -iframework lines to the tests once we figure
-    # out how we're dealing with them.
-
     quote_dirs, angle_dirs, include_files, filepath, _incl_clos_f, _d_opts = (
       parse_command.ParseCommandArgs(
         parse_command.ParseCommandLine(
-          self.mock_compiler + " -isystem system -Imice -iquote/and -I/men a.c "
-          " -include included_A.h "
-          " -includeincluded_B.h "
-          "-Xlinker W,l -L /ignored_by_us -o a.o"),
+          self.mock_compiler
+          + " --sysroot=" + self.mock_sysroot
+          + " -isystem system -Imice -iquote/and -I/men a.c "
+          + " -include included_A.h "
+          + " -includeincluded_B.h "
+          + "-Xlinker W,l -L /ignored_by_us -o a.o"),
           os.getcwd(),
           self.includepath_map,
           self.directory_map,
@@ -135,7 +141,7 @@ class ParseCommandUnitTest(unittest.TestCase):
 
     self.assertEqual(
       (self._RetrieveDirectoriesExceptSys(quote_dirs),
-       self._RetrieveDirectoriesExceptSys(angle_dirs), 
+       self._RetrieveDirectoriesExceptSys(angle_dirs),
        [self.includepath_map.String(i) for i in include_files],
        filepath),
       (('/and', 'mice', '/men', 'system'),
@@ -147,7 +153,9 @@ class ParseCommandUnitTest(unittest.TestCase):
     self.assertRaises(NotCoveredError,
                       parse_command.ParseCommandArgs,
                       parse_command.ParseCommandLine(
-                        self.mock_compiler +" -I- -iquote a.c"),
+                        self.mock_compiler
+                        + " --sysroot=" + self.mock_sysroot
+                        + " -I- -iquote a.c"),
                       os.getcwd(),
                       self.includepath_map,
                       self.directory_map,
@@ -156,7 +164,8 @@ class ParseCommandUnitTest(unittest.TestCase):
     quote_dirs, angle_dirs, include_files, filepath, _incl_cls_file, _d_opts = (
       parse_command.ParseCommandArgs(parse_command.ParseCommandLine(
         "/usr/crosstool/v8/gcc-4.1.0-glibc-2.2.2/blah/gcc"
-        +  " -fno-exceptions -funsigned-char -D__STDC_FORMAT_MACROS -g0"
+        + " --sysroot=/usr/local/fake/sysroot"
+        + " -fno-exceptions -funsigned-char -D__STDC_FORMAT_MACROS -g0"
         + " -D_REENTRANT -DCOMPILER_GCC3 -DCOMPILER_GCC4 -DARCH_PIII -DOS_LINUX"
         + " -fmessage-length=0 -fno-strict-aliasing -fno-tree-vrp -D_REENTRANT"
         + " -DHAS_vsnprintf"
@@ -169,8 +178,8 @@ class ParseCommandUnitTest(unittest.TestCase):
                                      self.directory_map,
                                      self.compiler_defaults))
     self.assertEqual(
-      (self._RetrieveDirectoriesExceptSys(quote_dirs), 
-       self._RetrieveDirectoriesExceptSys(angle_dirs), 
+      (self._RetrieveDirectoriesExceptSys(quote_dirs),
+       self._RetrieveDirectoriesExceptSys(angle_dirs),
        filepath),
       (('',
         'obj/gcc-4.1.0-glibc-2.2.2-piii-linux-g0-dbg/genfiles/third_party/libxml/third_party/libxml',

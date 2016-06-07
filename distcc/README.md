@@ -1,34 +1,12 @@
-Distcc + Xcode Integration
-==========================
-			
-This is a fork of: 						
+# distcc -- a free distributed C/C++ compiler system
 
-distcc -- a free distributed C/C++ compiler system
+by Martin Pool
 
-[http://code.google.com/p/distcc/](http://code.google.com/p/distcc/)
+http://distcc.org/
 
-by Martin Pool <mbp@samba.org>
+"pump" functionality added by
+Fergus Henderson, Nils Klarlund, Manos Renieris, and Craig Silverstein (Google Inc.)
 
-"pump" functionality added by Fergus Henderson, Nils Klarlund, Manos Renieris, and Craig Silverstein (Google Inc.)
-			    
-Containing the Xcode integration code v. 2805 from Apple used in Xcode 3 and earlier.
-The Apple code is found here: [http://www.opensource.apple.com/source/distcc/](http://www.opensource.apple.com/source/distcc/)
-Or as a tarball here: [http://opensource.apple.com/tarballs/distcc/](http://opensource.apple.com/tarballs/distcc/)
-
-Additional changes have been made to integrate into Xcode 5+ as part of DistCode:
-	 [https://github.com/marksatt/DistCode](https://github.com/marksatt/DistCode)
-
-Original Readme
----------------
-
-distcc -- a free distributed C/C++ compiler system
-
-http://code.google.com/p/distcc/
-
-by Martin Pool <mbp@samba.org>
-
-"pump" functionality added by Fergus Henderson, Nils Klarlund, Manos Renieris, and Craig Silverstein (Google Inc.)
-			    
 distcc is a program to distribute compilation of C or C++ code across
 several machines on a network. distcc should always generate the same
 results as a local compile, is simple to install and use, and is often
@@ -72,4 +50,13 @@ kernel, rsync, KDE, GNOME (via GARNOME), Samba and Ethereal.  distcc
 is nearly linearly scalable for small numbers of machines: for a
 typical case, three machines are 2.6 times faster than one.
 
+## Licence
+
 distcc is distributed under the GNU General Public Licence v2.
+
+## Resources
+
+ * [Mailing list](https://lists.samba.org/mailman/listinfo/distcc)
+
+ * [Stack Overflow questions](http://stackoverflow.com/questions/tagged/distcc)
+

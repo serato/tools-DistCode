@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script
 
-#		"We are ugly but we have the music" 
+#		"We are ugly but we have the music"
 #			-- Leonard Cohen
 #
 # http://jerkcity.com/jerkcity1335.html
@@ -9,11 +9,10 @@ dnl Process this file with autoconf to produce a configure script
 # Copyright (C) 2002, 2003, 2004 by Martin Pool
 
 # As of 0.6cvs, distcc no longer uses automake, only autoconf.
-AC_PREREQ(2.53)
-AC_INIT(distcc, 3.2+2805, distcc@lists.samba.org)
+AC_PREREQ(2.69)
+AC_INIT(distcc, 3.2, distcc@lists.samba.org)
 
 AC_CONFIG_HEADERS(src/config.h)
-AC_CANONICAL_HOST
 
 # FreeBSD installs its version of libpopt into /usr/local/, but does
 # not put that on the default library and header path.
@@ -22,25 +21,6 @@ AC_CANONICAL_HOST
 # cross-compilation, and it's kind of ugly anyhow.  Anyhow, you can
 # either set CPPFLAGS and LDFLAGS when running configure, or use
 # --with-extra-foo.
-
-##### defaults
-
-dnl --with-docdir
-AC_DEFUN([DISTCC_WITH_DOCDIR],
-[AC_ARG_WITH(docdir,
-            AC_HELP_STRING([--with-docdir=DIR],
-                           [Use DIR to store documentation files (default ${datadir}/doc/distcc)]),
-            [with_docdir=$withval])
-if test "x$with_docdir" = "x" ; then
-  docdir='${datadir}/doc/distcc'
-else
-  docdir=$with_docdir
-fi
-AC_SUBST(docdir)
-])
-
-dnl Run the check for --with-docdir
-DISTCC_WITH_DOCDIR
 
 # Check for socklen_t, and do something appropiate on systems
 # that don't have it.
@@ -85,6 +65,18 @@ getpeername(0,0,&len);
 AC_ARG_WITH(included-popt,
 	AC_HELP_STRING([--with-included-popt], [use bundled popt library, not from system]))
 
+AC_ARG_ENABLE(pump-mode,
+	AC_HELP_STRING([--disable-pump-mode],
+		[include server support (pump mode), requires python]),
+		[pump_mode=${enableval}], [pump_mode=yes])
+
+# We prefer to use the latest Python
+if test "x${pump_mode}" = xyes; then
+	AM_PATH_PYTHON([3.1],,[:])
+	AC_ARG_VAR(PYTHON, [Python interpreter])
+	AC_SUBST(PYTHON_RELATIVE_LIB)
+fi
+
 AC_ARG_ENABLE(rfc2553,
 	AC_HELP_STRING([--enable-rfc2553], [use getaddrinfo, getnameinfo, etc]))
 
@@ -92,34 +84,6 @@ if test x"$enable_rfc2553" = xyes
 then
     AC_DEFINE(ENABLE_RFC2553,1,[use getaddrinfo(), getnameinfo(), etc])
 fi
-
-xcode_integration_default=no
-case "$host" in
-    *-apple-darwin*)
-        xcode_integration_default=yes
-        ;;
-esac
-
-AC_ARG_ENABLE(xcode-integration,
-              AC_HELP_STRING([--enable-xcode-integration],
-                             [enable Xcode integration ]
-                                 [(default enabled on Mac)]),
-              [],
-              [enable_xcode_integration=$xcode_integration_default])
-
-XCODE_INTEGRATION_COMMON_OBJS=
-XCODE_INTEGRATION_DISTCC_OBJS=
-XCODE_INTEGRATION_DISTCCD_OBJS=
-
-if test x"$enable_xcode_integration" = xyes ; then
-    AC_DEFINE(XCODE_INTEGRATION, 1, [Enable Xcode integration])
-    XCODE_INTEGRATION_COMMON_OBJS="src/xci_utils.o"
-    XCODE_INTEGRATION_DISTCCD_OBJS="src/xci_headermap.o src/xci_versinfo.o src/xci_zeroconf.o"
-fi
-
-AC_SUBST(XCODE_INTEGRATION_COMMON_OBJS)
-AC_SUBST(XCODE_INTEGRATION_DISTCC_OBJS)
-AC_SUBST(XCODE_INTEGRATION_DISTCCD_OBJS)
 
 AC_ARG_WITH(gnome,
         AC_HELP_STRING([--with-gnome], [build GNOME-based monitor]))
@@ -152,7 +116,7 @@ AC_ARG_ENABLE(Werror,
 # Now get the package configuration information for whatever packages
 # we need.  It's faster to just do it once during configuration.
 if test "x${with_gnome}" = xyes
-then 
+then
     GNOME_PACKAGES="gtk+-2.0 libgnome-2.0 libgnomeui-2.0 pango"
 elif test "x${with_gtk}" = xyes
 then
@@ -168,11 +132,11 @@ do
     then
         AC_MSG_RESULT($gnomevers)
     else
-        AC_MSG_ERROR([$pkg was not found by pkg-config])        
+        AC_MSG_ERROR([$pkg was not found by pkg-config])
     fi
 done
 
-if test x${with_gnome} = xyes -o x${with_gtk} = xyes 
+if test x${with_gnome} = xyes -o x${with_gtk} = xyes
 then
     INSTALL_GNOME="install-gnome-data"
     UNINSTALL_GNOME="uninstall-gnome-data"
@@ -202,7 +166,7 @@ then
 -W -Wall -Wimplicit \
 -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings \
 -Waggregate-return -Wstrict-prototypes -Wmissing-prototypes \
--Wnested-externs -Wmissing-declarations -Wno-cast-align -Wno-unused-parameter -Wno-unused-local-typedef"
+-Wnested-externs -Wmissing-declarations"
 
     # -Wuninitialized requires -O
     case "$CFLAGS" in "-O"*|*" -O"*)
@@ -252,6 +216,9 @@ AC_ISC_POSIX
 # variadic macros.  If we can disable it, do so.
 
 
+# This is needed for our included version of lzo.
+CPPFLAGS="$CPPFLAGS -DMINILZO_HAVE_CONFIG_H"
+
 # This is needed for our included version of popt.
 # TODO(csilvers): figure out what that above comment means, and if it's true.
 CPPFLAGS="$CPPFLAGS -DHAVE_CONFIG_H"
@@ -263,37 +230,6 @@ CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
 
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
-
-# We prefer to use the latest Python, but try to find an explicit
-# version to make sure we don't get a really old one.
-#
-# The include server requires python 2.4 or later, but the 'make test'
-# routines only require python 2.2.  Thus we have two separate
-# variables.  Each variable is the empty string if the python that we
-# haven't isn't recent enough for that use, or the path to a python
-# executable if it is recent enough.
-#
-# NB: Cannot use AC_CONFIG_LIBOBJ_DIR here, because it's not present
-# in autoconf 2.53.
-AC_PATH_PROGS(PYTHON, [python2.7 python-2.7 python2.6 python-2.6 python2.5 python-2.5 python2.4 python-2.4 python])
-AC_ARG_VAR(PYTHON, [Python interpreter])
-# Python 1 doesn't even support -V
-if ! "$PYTHON" -V 2>&1 | grep "^Python" >/dev/null; then
-  TEST_PYTHON=""
-  INCLUDESERVER_PYTHON=""
-elif "$PYTHON" -V 2>&1 | grep "^Python 2.1" >/dev/null; then
-  TEST_PYTHON=""
-  INCLUDESERVER_PYTHON=""
-elif "$PYTHON" -V 2>&1 | grep "^Python 2.[[23]]" >/dev/null; then
-  TEST_PYTHON="$PYTHON"
-  INCLUDESERVER_PYTHON=""
-else
-  TEST_PYTHON="$PYTHON"
-  INCLUDESERVER_PYTHON="$PYTHON"
-fi
-AC_SUBST(TEST_PYTHON)
-AC_SUBST(INCLUDESERVER_PYTHON)
-AC_SUBST(PYTHON_RELATIVE_LIB)
 AC_C_INLINE
 AC_C_BIGENDIAN
 
@@ -367,9 +303,10 @@ AC_SEARCH_LIBS(inet_aton, [resolv])
 
 if test x"$with_included_popt" != x"yes"  && test x"$with_included_popt" != xno
 then
-    # If not explicitly requested, guess.       
-    # People might have the library but not the header, in which case we 
+    # If not explicitly requested, guess.
+    # People might have the library but not the header, in which case we
     # still need to use the included copy.
+    AC_CHECK_LIB(popt, poptGetContext, , [with_included_popt=yes])
     AC_CHECK_HEADER(popt.h, , [with_included_popt=yes])
 fi
 AC_CACHE_SAVE
@@ -382,9 +319,10 @@ then
     BUILD_POPT='$(popt_OBJS)'
     POPT_INCLUDES='-I"$(srcdir)/popt"'
 else
-    LIBS="$LIBS -lpopt"
     AC_MSG_RESULT(no)
     POPT_INCLUDES=''
+    AC_CHECK_LIB(popt, poptGetContext, ,
+                 AC_MSG_ERROR([Cannot find system libpopt]))
 fi
 
 AC_ARG_WITH(libiberty,
@@ -476,7 +414,7 @@ AC_CACHE_CHECK([for C99 vsnprintf],rsync_cv_HAVE_C99_VSNPRINTF,[
 AC_TRY_RUN([
 #include <sys/types.h>
 #include <stdarg.h>
-void foo(const char *format, ...) { 
+void foo(const char *format, ...) {
        va_list ap;
        int len;
        char buf[5];
@@ -521,11 +459,9 @@ AC_ARG_WITH(avahi,
         AC_HELP_STRING([--without-avahi], [build without avahi]))
 
 dnl check for avahi
-have_avahi=no
 if test x"$with_avahi" != xno; then
     PKG_CHECK_MODULES(AVAHI, [avahi-client >= 0.6],
     [AC_DEFINE(HAVE_AVAHI, 1, [defined if Avahi is available])
-    have_avahi=yes
     CFLAGS="$CFLAGS $AVAHI_CFLAGS"
     LIBS="$LIBS $AVAHI_LIBS"
     ZEROCONF_COMMON_OBJS="src/zeroconf.o src/gcc-id.o"
@@ -561,13 +497,6 @@ if test x"$with_auth" = xyes; then
                         AUTH_DISTCCD_OBJS="")
 fi
 
-dnl Check for dns_sd if Avahi is not present and Xcode integration is desired
-if test x"$have_avahi" = xno && test x"$enable_xcode_integration" = xyes ; then
-    AC_CHECK_HEADER(dns_sd.h,
-        [AC_SEARCH_LIBS(DNSServiceRegister, [dns_sd],
-            [AC_DEFINE(HAVE_DNSSD, 1, [Defined to use Bonjour DNS_SD])])])
-fi
-
 AC_SUBST(AUTH_COMMON_OBJS)
 AC_SUBST(AUTH_DISTCC_OBJS)
 AC_SUBST(AUTH_DISTCCD_OBJS)
@@ -578,7 +507,6 @@ CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
 CC="$PTHREAD_CC"
 
 dnl ##### Output
-AC_SUBST(docdir)
 AC_SUBST(CFLAGS)
 AC_SUBST(LDFLAGS)
 AC_SUBST(CPPFLAGS)
@@ -610,12 +538,12 @@ cat <<EOF
     modify it under the terms of the GNU General Public License
     as published by the Free Software Foundation; either version 2
     of the License, or (at your option) any later version.
-    
+
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-    
+
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,

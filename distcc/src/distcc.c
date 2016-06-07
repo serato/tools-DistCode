@@ -247,7 +247,7 @@ int main(int argc, char **argv)
     /* Expand @FILE arguments. */
     expandargv(&argc, &argv);
 #endif
-	
+ 
     /* Ignore SIGPIPE; we consistently check error codes and will
      * see the EPIPE. */
     dcc_ignore_sigpipe(1);
@@ -311,12 +311,6 @@ int main(int argc, char **argv)
 	        goto out;
 	    }
 #endif
-#ifdef XCODE_INTEGRATION
-        if (!strcmp(argv[1], "--host-info") && argc == 3) {
-            ret = dcc_show_host_info(argv[2]);
-            goto out;
-        }
-#endif /* XCODE_INTEGRATION */
 
         if ((ret = dcc_find_compiler(argv, &compiler_args)) != 0) {
             goto out;
