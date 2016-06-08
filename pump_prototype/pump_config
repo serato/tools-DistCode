@@ -1,0 +1,6 @@
+# include to configure pump
+
+# export DISTCC_HOSTS=10.200.28.71/100,cpp,lzo
+export DISTCC_HOSTS=10.200.28.71,lzo,cpp
+# export DISTCC_HOSTS=10.200.28.199/100,cpp,lzo
+export DISTCC_VERBOSE=1

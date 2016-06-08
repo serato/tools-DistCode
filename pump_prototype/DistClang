@@ -19,6 +19,7 @@ echo "Running custom DistClang with pump"
 
 echo "current path $SCRIPT_DIR"
 
+mkdir $SOCKET_DIR
 include_server_stderr=$SOCKET_DIR/stderr
 include_server_stdout=$SOCKET_DIR/stdout
 
