@@ -99,6 +99,8 @@ CPP_OPTIONS_MAYBE_TWO_WORDS = {
   '-MT':            lambda ps, arg: None,
   '-MQ':            lambda ps, arg: None,
   '-arch':          lambda ps, arg: None,
+  '-iframework':    lambda ps, arg: ps.include_dirs.append((arg,
+                                               basics.INCLUDE_DIR_FRAMEWORKS)),
   '-include':       lambda ps, arg: ps.include_files.append(arg),
   '-imacros':       lambda ps, arg: ps.include_files.append(arg),
   '-idirafter':     lambda ps, arg: ps.after_system_dirs.append(arg),
@@ -111,6 +113,7 @@ CPP_OPTIONS_MAYBE_TWO_WORDS = {
   '-imultilib':     lambda ps, arg: _RaiseNotImplemented('-imultilib'),
   '-isystem':       lambda ps, arg: ps.before_system_dirs.append(arg),
   '-iquote':        lambda ps, arg: ps.quote_dirs.append(arg),
+  '--sysroot':      lambda ps, arg: ps.set_sysroot(arg),
 }
 CPP_OPTIONS_MAYBE_TWO_WORDS_FIRST_LETTERS = ('M', 'i', '-', 'a')
 # A "compile-time" check to make sure the first-letter list is up-to-date
@@ -132,6 +135,7 @@ CPP_OPTIONS_ALWAYS_TWO_WORDS = {
   '--param':        lambda ps, arg: None,
   '-Xassembler':    lambda ps, arg: None,
   '-Xlinker':       lambda ps, arg: None,
+  '--serialize-diagnostics': lambda ps, arg: None,
 }
 
 # For efficiency, it's helpful to be able to combine the two above
@@ -342,9 +346,20 @@ def ParseCommandArgs(args, current_dir, includepath_map, dir_map,
   if len(args) < 2:
     raise NotCoveredError("Command line: too few arguments.")
 
-  compiler = args[0]
+  i = 0
+  compiler = args[i]
+  i += 1
 
-  i = 1
+  if compiler == "xcrun":
+    print("Found xcrun")
+    compiler = args[i]
+    i += 1
+  # if compiler == "clang":
+  #   # Try see if it solves some problems
+  #   compiler = 'gcc'
+
+  print("compiler is %s" % compiler)
+
   while i < len(args):
     # First, deal with everything that's not a flag-option
     if args[i][0] != '-' or args[i] == '-':     # - is the stdin file
