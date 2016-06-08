@@ -1,0 +1,12 @@
+*.o
+*.d
+*.xcscheme
+*.pyc
+*.pyo
+DistCode.xcodeproj/xcuserdata
+DistCode.xcodeproj/project.xcworkspace/xcuserdata
+dmucs/dmucs.xcodeproj/xcuserdata
+distcc/distcc-read-only.xcodeproj/xcuserdata
+distcc/autom4te.cache
+config.log
+contents.xcworkspacedata
